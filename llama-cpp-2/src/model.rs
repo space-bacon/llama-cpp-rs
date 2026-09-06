@@ -130,6 +130,12 @@ unsafe impl Send for LlamaModel {}
 unsafe impl Sync for LlamaModel {}
 
 impl LlamaModel {
+    /// The raw `llama_model` pointer, for callers that reach llama.cpp functions this crate does not wrap.
+    /// The pointer is valid for the life of this `LlamaModel`.
+    #[must_use]
+    pub fn as_ptr(&self) -> *mut llama_cpp_sys_2::llama_model {
+        self.model.as_ptr()
+    }
     pub(crate) fn vocab_ptr(&self) -> *const llama_cpp_sys_2::llama_vocab {
         unsafe { llama_cpp_sys_2::llama_model_get_vocab(self.model.as_ptr()) }
     }

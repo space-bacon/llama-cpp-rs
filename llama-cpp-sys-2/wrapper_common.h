@@ -21,6 +21,22 @@ llama_rs_status llama_rs_json_schema_to_grammar(
     bool force_gbnf,
     char ** out_grammar);
 
+// The model's chat template through common/chat (jinja via minja): what llama-server renders.
+// Templates the legacy matcher does not know (gemma-4's <|turn>, the 2026 Qwen tool-calling ones) work here.
+struct llama_rs_chat_templates;
+struct llama_rs_chat_templates * llama_rs_chat_templates_init(const struct llama_model * model);
+void llama_rs_chat_templates_free(struct llama_rs_chat_templates * tmpls);
+bool llama_rs_chat_templates_supports_thinking(const struct llama_rs_chat_templates * tmpls);
+// roles[i]/contents[i] for n messages; *out_prompt is malloc'd (free with llama_rs_string_free).
+llama_rs_status llama_rs_chat_render(
+    const struct llama_rs_chat_templates * tmpls,
+    const char * const * roles,
+    const char * const * contents,
+    size_t n,
+    bool add_generation_prompt,
+    bool enable_thinking,
+    char ** out_prompt);
+
 struct llama_sampler * llama_rs_sampler_init_grammar(
     const struct llama_vocab * vocab,
     const char * grammar_str,

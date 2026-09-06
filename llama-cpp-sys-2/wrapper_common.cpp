@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "llama.cpp/common/common.h"
+#include "llama.cpp/common/chat.h"
 #include "llama.cpp/common/fit.h"
 #include "llama.cpp/common/json-schema-to-grammar.h"
 #include "llama.cpp/common/speculative.h"
@@ -39,6 +40,74 @@ extern "C" llama_rs_status llama_rs_json_schema_to_grammar(
 extern "C" void llama_rs_string_free(char * ptr) {
     if (ptr) {
         std::free(ptr);
+    }
+}
+
+struct llama_rs_chat_templates {
+    common_chat_templates_ptr tmpls;
+};
+
+extern "C" struct llama_rs_chat_templates * llama_rs_chat_templates_init(const struct llama_model * model) {
+    if (!model) {
+        return nullptr;
+    }
+    try {
+        auto * out = new llama_rs_chat_templates();
+        out->tmpls = common_chat_templates_init(model, "");
+        if (!out->tmpls) {
+            delete out;
+            return nullptr;
+        }
+        return out;
+    } catch (const std::exception &) {
+        return nullptr;
+    }
+}
+
+extern "C" void llama_rs_chat_templates_free(struct llama_rs_chat_templates * tmpls) {
+    delete tmpls;
+}
+
+extern "C" bool llama_rs_chat_templates_supports_thinking(const struct llama_rs_chat_templates * tmpls) {
+    if (!tmpls) {
+        return false;
+    }
+    try {
+        return common_chat_templates_support_enable_thinking(tmpls->tmpls.get());
+    } catch (const std::exception &) {
+        return false;
+    }
+}
+
+extern "C" llama_rs_status llama_rs_chat_render(
+    const struct llama_rs_chat_templates * tmpls,
+    const char * const * roles,
+    const char * const * contents,
+    size_t n,
+    bool add_generation_prompt,
+    bool enable_thinking,
+    char ** out_prompt) {
+    if (!tmpls || !out_prompt || (n > 0 && (!roles || !contents))) {
+        return LLAMA_RS_STATUS_INVALID_ARGUMENT;
+    }
+    *out_prompt = nullptr;
+    try {
+        common_chat_templates_inputs inputs;
+        inputs.messages.reserve(n);
+        for (size_t i = 0; i < n; i++) {
+            common_chat_msg m;
+            m.role    = roles[i] ? roles[i] : "user";
+            m.content = contents[i] ? contents[i] : "";
+            inputs.messages.push_back(std::move(m));
+        }
+        inputs.add_generation_prompt = add_generation_prompt;
+        inputs.use_jinja             = true;
+        inputs.enable_thinking       = enable_thinking;
+        const auto params = common_chat_templates_apply(tmpls->tmpls.get(), inputs);
+        *out_prompt = llama_rs_dup_string(params.prompt);
+        return *out_prompt ? LLAMA_RS_STATUS_OK : LLAMA_RS_STATUS_ALLOCATION_FAILED;
+    } catch (const std::exception &) {
+        return LLAMA_RS_STATUS_EXCEPTION;
     }
 }
 
