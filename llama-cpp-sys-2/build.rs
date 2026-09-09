@@ -1134,20 +1134,10 @@ fn main() {
         }
 
         // mtmd-helper hashes media buffers with vendor/hash (upstream 2026-09); it is not part of the llama build.
-        let hash_dir = llama_src.join("vendor/hash");
-        if hash_dir.join("hash.cpp").exists() {
-            mtmd_build.include(&hash_dir).file(hash_dir.join("hash.cpp"));
-            // hash.cpp declares these with C linkage, so they must be built as C, not in the C++ build above.
-            let mut hash_c = cc::Build::new();
-            hash_c.include(&hash_dir).pic(true);
-            for c in ["sha256/sha256.c", "sha1/sha1.c", "xxhash/xxhash.c"] {
-                let f = hash_dir.join(c);
-                if f.exists() {
-                    hash_c.file(&f);
-                }
-            }
-            hash_c.compile("mtmd_vendor_hash");
-        }
+        // mtmd-helper hashes media buffers with vendor/hash (upstream 2026-09), which the cmake build already
+        // compiles as libvendor-hash.a (sha1.c there is C++ despite its name, so it is not rebuilt here).
+        println!("cargo:rustc-link-search={}", build_dir.join("build").join("vendor").join("hash").display());
+        println!("cargo:rustc-link-lib=static=vendor-hash");
 
         mtmd_build.compile("mtmd");
     }
