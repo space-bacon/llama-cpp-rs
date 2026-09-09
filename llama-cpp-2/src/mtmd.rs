@@ -784,6 +784,40 @@ pub struct MtmdInputChunk {
 }
 
 impl MtmdInputChunk {
+    /// Evaluate this one chunk into the llama context (encode if image/audio, then decode), like
+    /// [`MtmdInputChunks::eval_chunks`] for a single chunk. Returns the new `n_past`. Lets a caller do
+    /// per-chunk work between chunks (e.g. read an activation tap over the image positions only).
+    ///
+    /// This function is NOT thread-safe.
+    pub fn eval_single(
+        &self,
+        mtmd_ctx: &MtmdContext,
+        llama_ctx: &LlamaContext,
+        n_past: llama_cpp_sys_2::llama_pos,
+        seq_id: llama_cpp_sys_2::llama_seq_id,
+        n_batch: i32,
+        logits_last: bool,
+    ) -> Result<llama_cpp_sys_2::llama_pos, MtmdEvalError> {
+        let mut new_n_past: llama_cpp_sys_2::llama_pos = 0;
+        let result = unsafe {
+            llama_cpp_sys_2::mtmd_helper_eval_chunk_single(
+                mtmd_ctx.context.as_ptr(),
+                llama_ctx.context.as_ptr(),
+                self.chunk.as_ptr(),
+                n_past,
+                seq_id,
+                n_batch,
+                logits_last,
+                &raw mut new_n_past,
+            )
+        };
+        if result == 0 {
+            Ok(new_n_past)
+        } else {
+            Err(MtmdEvalError::EvalFailure(result))
+        }
+    }
+
     /// Get the type of this chunk
     #[must_use]
     pub fn chunk_type(&self) -> MtmdInputChunkType {
