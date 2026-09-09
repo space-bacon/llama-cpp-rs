@@ -1134,9 +1134,16 @@ fn main() {
         }
 
         // mtmd-helper hashes media buffers with vendor/hash (upstream 2026-09); it is not part of the llama build.
-        let hash_cpp = llama_src.join("vendor/hash/hash.cpp");
-        if hash_cpp.exists() {
-            mtmd_build.file(&hash_cpp);
+        let hash_dir = llama_src.join("vendor/hash");
+        if hash_dir.join("hash.cpp").exists() {
+            mtmd_build.include(&hash_dir).file(hash_dir.join("hash.cpp"));
+            for c in ["sha256/sha256.c", "sha1/sha1.c", "xxhash/xxhash.c"] {
+                let f = hash_dir.join(c);
+                if f.exists() {
+                    // C sources ride along in the C++ build; cc picks the language per file.
+                    mtmd_build.file(&f);
+                }
+            }
         }
 
         mtmd_build.compile("mtmd");
