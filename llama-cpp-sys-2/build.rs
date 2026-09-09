@@ -1133,6 +1133,12 @@ fn main() {
             }
         }
 
+        // mtmd-helper hashes media buffers with vendor/hash (upstream 2026-09); it is not part of the llama build.
+        let hash_cpp = llama_src.join("vendor/hash/hash.cpp");
+        if hash_cpp.exists() {
+            mtmd_build.file(&hash_cpp);
+        }
+
         mtmd_build.compile("mtmd");
     }
 
