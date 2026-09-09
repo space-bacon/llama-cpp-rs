@@ -1137,13 +1137,16 @@ fn main() {
         let hash_dir = llama_src.join("vendor/hash");
         if hash_dir.join("hash.cpp").exists() {
             mtmd_build.include(&hash_dir).file(hash_dir.join("hash.cpp"));
+            // hash.cpp declares these with C linkage, so they must be built as C, not in the C++ build above.
+            let mut hash_c = cc::Build::new();
+            hash_c.include(&hash_dir).pic(true);
             for c in ["sha256/sha256.c", "sha1/sha1.c", "xxhash/xxhash.c"] {
                 let f = hash_dir.join(c);
                 if f.exists() {
-                    // C sources ride along in the C++ build; cc picks the language per file.
-                    mtmd_build.file(&f);
+                    hash_c.file(&f);
                 }
             }
+            hash_c.compile("mtmd_vendor_hash");
         }
 
         mtmd_build.compile("mtmd");
